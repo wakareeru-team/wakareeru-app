@@ -9,10 +9,10 @@ flutter pub get
 flutter run
 ```
 
-The app defaults to the production gateway:
+The app defaults to the Singapore relay gateway:
 
 ```text
-https://wakareeru-api-gateway.fengyukunfyk.workers.dev
+http://159.89.193.182:8787
 ```
 
 Override the initial gateway URL when needed:

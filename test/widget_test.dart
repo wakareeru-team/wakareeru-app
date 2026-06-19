@@ -6,10 +6,10 @@ void main() {
     await tester.pumpWidget(const WakareeruApp());
 
     expect(find.text(appDisplayName), findsWidgets);
-    expect(find.text('拍照'), findsOneWidget);
-    expect(find.text('相册'), findsOneWidget);
-    expect(find.text('开始识别'), findsOneWidget);
-    expect(find.text('识别'), findsWidgets);
-    expect(find.text('设置'), findsWidgets);
+    expect(find.text('Camera'), findsOneWidget);
+    expect(find.text('Gallery'), findsOneWidget);
+    expect(find.text('Start Recognition'), findsOneWidget);
+    expect(find.text('Recognize'), findsWidgets);
+    expect(find.text('Settings'), findsWidgets);
   });
 }
