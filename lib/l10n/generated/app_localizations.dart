@@ -133,7 +133,7 @@ abstract class AppLocalizations {
   /// No description provided for @gallery.
   ///
   /// In zh, this message translates to:
-  /// **'相册'**
+  /// **'从相册选择'**
   String get gallery;
 
   /// No description provided for @startRecognition.
@@ -211,7 +211,7 @@ abstract class AppLocalizations {
   /// No description provided for @openWikipedia.
   ///
   /// In zh, this message translates to:
-  /// **'打开 Wikipedia'**
+  /// **'在 Wikipedia 上查看'**
   String get openWikipedia;
 
   /// No description provided for @copiedLink.
@@ -283,7 +283,7 @@ abstract class AppLocalizations {
   /// No description provided for @operatorCountLabel.
   ///
   /// In zh, this message translates to:
-  /// **'运营商'**
+  /// **'运营公司'**
   String get operatorCountLabel;
 
   /// No description provided for @recordCountLabel.
@@ -409,49 +409,49 @@ abstract class AppLocalizations {
   /// No description provided for @ok.
   ///
   /// In zh, this message translates to:
-  /// **'好'**
+  /// **'确定'**
   String get ok;
 
   /// No description provided for @collectionOperator.
   ///
   /// In zh, this message translates to:
-  /// **'事業者'**
+  /// **'运营公司'**
   String get collectionOperator;
 
   /// No description provided for @vehicleType.
   ///
   /// In zh, this message translates to:
-  /// **'車種'**
+  /// **'车辆类型'**
   String get vehicleType;
 
   /// No description provided for @powerType.
   ///
   /// In zh, this message translates to:
-  /// **'動力'**
+  /// **'动力方式'**
   String get powerType;
 
   /// No description provided for @series.
   ///
   /// In zh, this message translates to:
-  /// **'系列'**
+  /// **'车系'**
   String get series;
 
   /// No description provided for @formation.
   ///
   /// In zh, this message translates to:
-  /// **'編成'**
+  /// **'特殊编组'**
   String get formation;
 
   /// No description provided for @livery.
   ///
   /// In zh, this message translates to:
-  /// **'塗装'**
+  /// **'涂装'**
   String get livery;
 
   /// No description provided for @submodel.
   ///
   /// In zh, this message translates to:
-  /// **'形式'**
+  /// **'子型号'**
   String get submodel;
 
   /// No description provided for @bandai.
@@ -463,7 +463,7 @@ abstract class AppLocalizations {
   /// No description provided for @recordedAt.
   ///
   /// In zh, this message translates to:
-  /// **'记录'**
+  /// **'记录时间'**
   String get recordedAt;
 
   /// No description provided for @candidateSeries.
@@ -493,7 +493,7 @@ abstract class AppLocalizations {
   /// No description provided for @detectionConfidence.
   ///
   /// In zh, this message translates to:
-  /// **'检测置信'**
+  /// **'检测置信度'**
   String get detectionConfidence;
 
   /// No description provided for @cropBox.
@@ -535,7 +535,7 @@ abstract class AppLocalizations {
   /// No description provided for @unknown.
   ///
   /// In zh, this message translates to:
-  /// **'Unknown'**
+  /// **'未知'**
   String get unknown;
 
   /// No description provided for @statusConfused.
