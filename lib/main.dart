@@ -97,7 +97,7 @@ class _WakareeruShellState extends State<WakareeruShell> {
   final TextEditingController _apiBaseController = TextEditingController(
     text: const String.fromEnvironment(
       'WAKAREERU_API_BASE_URL',
-      defaultValue: 'http://127.0.0.1:8787',
+      defaultValue: 'https://wakareeru-api-gateway.fengyukunfyk.workers.dev',
     ),
   );
 
@@ -453,7 +453,8 @@ class SettingsPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 CupertinoTextField(
                   controller: apiBaseController,
-                  placeholder: 'http://127.0.0.1:8787',
+                  placeholder:
+                      'https://wakareeru-api-gateway.fengyukunfyk.workers.dev',
                   clearButtonMode: OverlayVisibilityMode.editing,
                   keyboardType: TextInputType.url,
                   textInputAction: TextInputAction.done,

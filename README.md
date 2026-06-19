@@ -9,10 +9,10 @@ flutter pub get
 flutter run
 ```
 
-The app defaults to the local gateway:
+The app defaults to the production gateway:
 
 ```text
-http://127.0.0.1:8787
+https://wakareeru-api-gateway.fengyukunfyk.workers.dev
 ```
 
 Override the initial gateway URL when needed:
