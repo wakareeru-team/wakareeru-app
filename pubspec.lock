@@ -4,9 +4,10 @@ packages:
   adaptive_platform_ui:
     dependency: "direct main"
     description:
-      path: "/Users/sakiko/Desktop/NipaPlay-Reload/packages/adaptive_platform_ui"
-      relative: false
-    source: path
+      name: adaptive_platform_ui
+      sha256: "6c1e55ca904a647285b067761d6a2fc1f62e646a72dab9524090a146e320cfda"
+      url: "https://pub.dev"
+    source: hosted
     version: "0.1.98"
   args:
     dependency: transitive

@@ -1,0 +1,217 @@
+name: Release mobile apps
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: "3.38.4"
+
+jobs:
+  android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Validate release tag
+        shell: bash
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must use the form v1.2.3" >&2
+            exit 1
+          fi
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install Android signing key
+        shell: bash
+        run: |
+          : "${ANDROID_KEYSTORE_BASE64:?Missing ANDROID_KEYSTORE_BASE64 secret}"
+          : "${ANDROID_KEY_ALIAS:?Missing ANDROID_KEY_ALIAS secret}"
+          : "${ANDROID_KEY_PASSWORD:?Missing ANDROID_KEY_PASSWORD secret}"
+          : "${ANDROID_STORE_PASSWORD:?Missing ANDROID_STORE_PASSWORD secret}"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" \
+            | openssl base64 -d -A -out android/app/release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$ANDROID_STORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=release.jks
+          EOF
+
+      - name: Build signed APK
+        run: >-
+          flutter build apk --release
+          --build-name="$VERSION"
+          --build-number="$GITHUB_RUN_NUMBER"
+
+      - name: Prepare APK artifact
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            "dist/wakareeru-${VERSION}-android.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-apk
+          path: dist/*.apk
+          if-no-files-found: error
+
+  ios:
+    name: Build iOS IPA
+    runs-on: macos-latest
+    env:
+      IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+      IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+      IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+      IOS_EXPORT_OPTIONS_PLIST_BASE64: ${{ secrets.IOS_EXPORT_OPTIONS_PLIST_BASE64 }}
+      IOS_KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Validate release tag
+        shell: bash
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must use the form v1.2.3" >&2
+            exit 1
+          fi
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install Apple signing material
+        shell: bash
+        run: |
+          : "${IOS_CERTIFICATE_BASE64:?Missing IOS_CERTIFICATE_BASE64 secret}"
+          : "${IOS_CERTIFICATE_PASSWORD:?Missing IOS_CERTIFICATE_PASSWORD secret}"
+          : "${IOS_PROVISION_PROFILE_BASE64:?Missing IOS_PROVISION_PROFILE_BASE64 secret}"
+          : "${IOS_EXPORT_OPTIONS_PLIST_BASE64:?Missing IOS_EXPORT_OPTIONS_PLIST_BASE64 secret}"
+          : "${IOS_KEYCHAIN_PASSWORD:?Missing IOS_KEYCHAIN_PASSWORD secret}"
+
+          CERTIFICATE_PATH="$RUNNER_TEMP/distribution.p12"
+          PROFILE_PATH="$RUNNER_TEMP/distribution.mobileprovision"
+          KEYCHAIN_PATH="$RUNNER_TEMP/release-signing.keychain-db"
+          EXPORT_OPTIONS_PATH="$RUNNER_TEMP/ExportOptions.plist"
+
+          printf '%s' "$IOS_CERTIFICATE_BASE64" \
+            | openssl base64 -d -A -out "$CERTIFICATE_PATH"
+          printf '%s' "$IOS_PROVISION_PROFILE_BASE64" \
+            | openssl base64 -d -A -out "$PROFILE_PATH"
+          printf '%s' "$IOS_EXPORT_OPTIONS_PLIST_BASE64" \
+            | openssl base64 -d -A -out "$EXPORT_OPTIONS_PATH"
+
+          security create-keychain -p "$IOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$IOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" \
+            -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$IOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+
+          PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
+          security cms -D -i "$PROFILE_PATH" > "$PROFILE_PLIST"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" "$PROFILE_PLIST")
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PROFILE_PATH" \
+            "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "EXPORT_OPTIONS_PATH=$EXPORT_OPTIONS_PATH" >> "$GITHUB_ENV"
+
+      - name: Build signed IPA
+        run: >-
+          flutter build ipa --release
+          --build-name="$VERSION"
+          --build-number="$GITHUB_RUN_NUMBER"
+          --export-options-plist="$EXPORT_OPTIONS_PATH"
+
+      - name: Prepare IPA artifact
+        shell: bash
+        run: |
+          IPA_PATH=$(find build/ios/ipa -name '*.ipa' -print -quit)
+          test -n "$IPA_PATH"
+          mkdir -p dist
+          cp "$IPA_PATH" "dist/wakareeru-${VERSION}-ios.ipa"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-ipa
+          path: dist/*.ipa
+          if-no-files-found: error
+
+      - name: Remove temporary signing keychain
+        if: always()
+        run: security delete-keychain "$KEYCHAIN_PATH" || true
+
+  release:
+    name: Publish GitHub Release
+    needs:
+      - android
+      - ios
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --verify-tag \
+              --generate-notes \
+              --title "$GITHUB_REF_NAME"
+          fi
