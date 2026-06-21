@@ -24,7 +24,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get camera => '拍照';
 
   @override
-  String get gallery => '相册';
+  String get gallery => '从相册选择';
 
   @override
   String get startRecognition => '开始识别';
@@ -65,7 +65,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get details => '详情';
 
   @override
-  String get openWikipedia => '打开 Wikipedia';
+  String get openWikipedia => '在 Wikipedia 上查看';
 
   @override
   String get copiedLink => '已复制链接';
@@ -101,7 +101,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get seriesCountLabel => '系列';
 
   @override
-  String get operatorCountLabel => '运营商';
+  String get operatorCountLabel => '运营公司';
 
   @override
   String get recordCountLabel => '记录';
@@ -176,34 +176,34 @@ class AppLocalizationsZh extends AppLocalizations {
   String get comingSoonMessage => '该功能即将推出，敬请期待。';
 
   @override
-  String get ok => '好';
+  String get ok => '确定';
 
   @override
-  String get collectionOperator => '事業者';
+  String get collectionOperator => '运营公司';
 
   @override
-  String get vehicleType => '車種';
+  String get vehicleType => '车辆类型';
 
   @override
-  String get powerType => '動力';
+  String get powerType => '动力方式';
 
   @override
-  String get series => '系列';
+  String get series => '车系';
 
   @override
-  String get formation => '編成';
+  String get formation => '特殊编组';
 
   @override
-  String get livery => '塗装';
+  String get livery => '涂装';
 
   @override
-  String get submodel => '形式';
+  String get submodel => '子型号';
 
   @override
   String get bandai => '番台';
 
   @override
-  String get recordedAt => '记录';
+  String get recordedAt => '记录时间';
 
   @override
   String get candidateSeries => '候选系列';
@@ -218,7 +218,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get detectionTarget => '检测目标';
 
   @override
-  String get detectionConfidence => '检测置信';
+  String get detectionConfidence => '检测置信度';
 
   @override
   String get cropBox => '裁切框';
@@ -241,7 +241,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get metadataUnavailable => '运营公司、番台、涂装、维基百科等信息会在元数据可用时显示。';
 
   @override
-  String get unknown => 'Unknown';
+  String get unknown => '未知';
 
   @override
   String get statusConfused => '易混淆';

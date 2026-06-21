@@ -2,6 +2,9 @@
 
 Flutter client for `wakareeru` image inference.
 
+[![Version](https://img.shields.io/github/v/release/wakareeru-team/wakareeru-app)](https://github.com/wakareeru-team/wakareeru-app/releases/latest)
+[![CI](https://github.com/wakareeru-team/wakareeru-app/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/wakareeru-team/wakareeru-app/actions/workflows/ci.yml)
+
 ## Run
 
 ```bash

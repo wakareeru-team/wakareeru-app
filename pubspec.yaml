@@ -7,8 +7,7 @@ environment:
   sdk: ^3.10.4
 
 dependencies:
-  adaptive_platform_ui:
-    path: /Users/sakiko/Desktop/NipaPlay-Reload/packages/adaptive_platform_ui
+  adaptive_platform_ui: 0.1.98
   cupertino_icons: ^1.0.8
   flutter:
     sdk: flutter

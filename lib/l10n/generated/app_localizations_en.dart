@@ -51,7 +51,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String carsCount(int count) {
-    return '$count cars';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count vehicles',
+      one: '1 vehicle',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -93,10 +99,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get emptyHistoryMessage =>
-      'Recognized vehicles will collect here. Save results to build your collection by series.';
+      'Recognized vehicles will appear here. Save results to build your collection by series.';
 
   @override
-  String get startRecognizingHistory => 'Start Recognizing';
+  String get startRecognizingHistory => 'Recognize a Vehicle';
 
   @override
   String get deleteFromHistory => 'Delete from History';
@@ -190,7 +196,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vehicleType => 'Vehicle Type';
 
   @override
-  String get powerType => 'Power';
+  String get powerType => 'Power System';
 
   @override
   String get series => 'Series';
@@ -205,16 +211,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get submodel => 'Type';
 
   @override
-  String get bandai => 'Bandai';
+  String get bandai => 'Number Series';
 
   @override
-  String get recordedAt => 'Recorded';
+  String get recordedAt => 'Recorded At';
 
   @override
   String get candidateSeries => 'Candidate Series';
 
   @override
-  String get confusionCandidates => 'Confusable Candidates';
+  String get confusionCandidates => 'Similar Candidates';
 
   @override
   String get detectionInfo => 'Detection Info';
@@ -244,17 +250,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get metadataUnavailable =>
-      'Operator, bandai, livery, Wikipedia, and other metadata will appear when available.';
+      'Operator, number series, livery, Wikipedia, and other metadata will appear when available.';
 
   @override
   String get unknown => 'Unknown';
 
   @override
-  String get statusConfused => 'Confusable';
+  String get statusConfused => 'Ambiguous';
 
   @override
   String get statusLowConfidence => 'Low Confidence';
 
   @override
-  String get statusNoDetection => 'No Detection';
+  String get statusNoDetection => 'Not Detected';
 }

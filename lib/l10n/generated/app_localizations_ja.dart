@@ -12,22 +12,22 @@ class AppLocalizationsJa extends AppLocalizations {
   String get appTitle => 'Wakareeru';
 
   @override
-  String get tabRecognize => '識別';
+  String get tabRecognize => '車両認識';
 
   @override
-  String get tabHistory => '記録';
+  String get tabHistory => '履歴';
 
   @override
   String get tabSettings => '設定';
 
   @override
-  String get camera => '撮影';
+  String get camera => 'カメラで撮影';
 
   @override
-  String get gallery => '写真';
+  String get gallery => 'ギャラリーから選択';
 
   @override
-  String get startRecognition => '識別を開始';
+  String get startRecognition => '認識を開始';
 
   @override
   String get recognizing => 'Thinking…';
@@ -46,57 +46,57 @@ class AppLocalizationsJa extends AppLocalizations {
   String get noVehicleDetected => '車両を検出できませんでした。より鮮明で車体が写った写真を試してください。';
 
   @override
-  String get recognitionResults => '識別結果';
+  String get recognitionResults => '認識結果';
 
   @override
   String carsCount(int count) {
-    return '$count 両';
+    return '$count両';
   }
 
   @override
   String get savedAutomatically => '自動保存済み';
 
   @override
-  String get saveToHistory => '記録に保存';
+  String get saveToHistory => '履歴に保存';
 
   @override
-  String get otherCandidates => 'ほかの候補';
+  String get otherCandidates => 'その他の候補';
 
   @override
   String get details => '詳細';
 
   @override
-  String get openWikipedia => 'Wikipedia でひらく';
+  String get openWikipedia => 'Wikipediaで見る';
 
   @override
   String get copiedLink => 'リンクをコピーしました';
 
   @override
-  String get historyTitle => '識別記録';
+  String get historyTitle => '認識履歴';
 
   @override
   String get clear => '消去';
 
   @override
-  String get clearHistoryTitle => '記録を消去';
+  String get clearHistoryTitle => '履歴を消去';
 
   @override
-  String get clearHistoryMessage => 'ローカルに保存された識別記録はすべて削除され、元に戻せません。';
+  String get clearHistoryMessage => 'ローカルに保存された認識履歴はすべて削除され、元に戻せません。';
 
   @override
   String get cancel => 'キャンセル';
 
   @override
-  String get emptyHistoryTitle => 'まだ記録がありません';
+  String get emptyHistoryTitle => 'まだ履歴はありません';
 
   @override
-  String get emptyHistoryMessage => '識別した車両がここに集まります。保存すると系列ごとに集められます。';
+  String get emptyHistoryMessage => '認識した車両がここに表示されます。保存して系列ごとのコレクションを作りましょう。';
 
   @override
-  String get startRecognizingHistory => '識別をはじめる';
+  String get startRecognizingHistory => '認識を始める';
 
   @override
-  String get deleteFromHistory => '記録から削除';
+  String get deleteFromHistory => '履歴から削除';
 
   @override
   String get seriesCountLabel => '系列';
@@ -168,7 +168,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get anonymousUser => '匿名ユーザー';
 
   @override
-  String get anonymousUserSubtitle => '現在は匿名で利用中。ログインすると識別記録をクラウド同期できます。';
+  String get anonymousUserSubtitle => '現在は匿名で利用中です。ログインすると認識履歴をクラウドに同期できます。';
 
   @override
   String get signInWithApple => 'Apple でログイン';
@@ -186,7 +186,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vehicleType => '車種';
 
   @override
-  String get powerType => '動力';
+  String get powerType => '動力方式';
 
   @override
   String get series => '系列';
@@ -204,7 +204,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get bandai => '番台';
 
   @override
-  String get recordedAt => '記録';
+  String get recordedAt => '記録日時';
 
   @override
   String get candidateSeries => '候補系列';
@@ -243,13 +243,13 @@ class AppLocalizationsJa extends AppLocalizations {
       '事業者、番台、塗装、Wikipedia などの情報はメタデータが利用可能になると表示されます。';
 
   @override
-  String get unknown => 'Unknown';
+  String get unknown => '不明';
 
   @override
   String get statusConfused => '混同注意';
 
   @override
-  String get statusLowConfidence => '低信頼度';
+  String get statusLowConfidence => '信頼度低';
 
   @override
   String get statusNoDetection => '未検出';
