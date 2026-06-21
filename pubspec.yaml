@@ -19,7 +19,9 @@ dependencies:
   image_picker: ^1.2.1
   intl: any
   path_provider: ^2.1.5
+  package_info_plus: ^9.0.0
   shared_preferences: ^2.3.2
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_lints: ^6.0.0
@@ -31,3 +33,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/rolling_stock_catalog.json
+    - assets/icon/wakareeru_icon_1024.png
+    - assets/icon/github_mark_48.png

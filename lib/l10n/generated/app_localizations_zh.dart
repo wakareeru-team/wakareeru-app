@@ -30,7 +30,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get startRecognition => '开始识别';
 
   @override
-  String get recognizing => '识别中…';
+  String get recognizing => 'Thinking…';
 
   @override
   String get selectImageFirst => '先选择一张车辆图片。';
@@ -144,6 +144,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get appLabel => '应用';
+
+  @override
+  String get appVersion => '应用版本';
+
+  @override
+  String get apiVersion => 'API 版本';
+
+  @override
+  String get gatewayVersion => 'Gateway 版本';
+
+  @override
+  String get modelVersion => '模型版本';
 
   @override
   String get dataSource => '数据来源';

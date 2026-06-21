@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -12,8 +13,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'history.dart';
 import 'l10n/generated/app_localizations.dart';
@@ -27,6 +30,9 @@ Future<void> main() async {
 
 const String appDisplayName = 'Wakareeru';
 const String defaultApiBaseUrl = 'http://159.89.193.182:8787';
+const String fallbackAppVersion = '1.0.0 (1)';
+const String projectGitHubUrl = 'https://github.com/wakareeru-team/wakareeru';
+const String unknownVersion = 'Unknown';
 const Color wakareeruBlue = Color(0xFF007AFF);
 const Color wakareeruMint = Color(0xFF00B7A8);
 const Color wakareeruAmber = Color(0xFFFF9F0A);
@@ -140,6 +146,102 @@ String _formatRecordTime(BuildContext context, DateTime time) {
   String two(int n) => n.toString().padLeft(2, '0');
   return '${time.year}/${two(time.month)}/${two(time.day)} '
       '${two(time.hour)}:${two(time.minute)}';
+}
+
+String resolveApiVersion(String baseUrl) {
+  final endpoint = baseUrl.trim().isEmpty ? defaultApiBaseUrl : baseUrl.trim();
+  final uri = Uri.tryParse(endpoint);
+  if (uri == null) {
+    return 'v1';
+  }
+  final versionSegment = uri.pathSegments.firstWhere(
+    (segment) => RegExp(r'^v\d+$').hasMatch(segment),
+    orElse: () => '',
+  );
+  return versionSegment.isEmpty ? 'v1' : versionSegment;
+}
+
+Uri? resolveVersionEndpoint(String baseUrl) {
+  final endpoint = baseUrl.trim().isEmpty ? defaultApiBaseUrl : baseUrl.trim();
+  final uri = Uri.tryParse(endpoint);
+  if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+    return null;
+  }
+  return uri.replace(path: '/version', query: null, fragment: null);
+}
+
+class GatewayVersionInfo {
+  const GatewayVersionInfo({
+    this.gatewayVersion,
+    this.apiVersion,
+    this.modelVersion,
+    this.provider,
+  });
+
+  final String? gatewayVersion;
+  final String? apiVersion;
+  final String? modelVersion;
+  final String? provider;
+
+  String get apiDisplay => _clean(apiVersion) ?? unknownVersion;
+  String get gatewayDisplay => _clean(gatewayVersion) ?? unknownVersion;
+  String get modelDisplay =>
+      _clean(modelVersion) ?? _clean(provider) ?? unknownVersion;
+
+  static GatewayVersionInfo? fromJson(Object? json) {
+    if (json is! Map<String, dynamic>) {
+      return null;
+    }
+    final versions = json['versions'];
+    final model = json['model'];
+    return GatewayVersionInfo(
+      gatewayVersion: _firstString([
+        json['gateway_version'],
+        json['gatewayVersion'],
+        json['version'],
+        if (versions is Map) versions['gateway'],
+      ]),
+      apiVersion: _firstString([
+        json['api_version'],
+        json['apiVersion'],
+        if (versions is Map) versions['api'],
+      ]),
+      modelVersion: _firstString([
+        json['model_version'],
+        json['modelVersion'],
+        json['inference_version'],
+        json['inferenceVersion'],
+        json['inference_version_hint'],
+        if (versions is Map) versions['model'],
+        if (versions is Map) versions['inference'],
+        if (model is Map) model['version'],
+        if (model is Map) model['name'],
+      ]),
+      provider: _firstString([
+        json['inference_provider'],
+        json['provider'],
+        if (model is Map) model['provider'],
+      ]),
+    );
+  }
+
+  static String? _firstString(Iterable<Object?> values) {
+    for (final value in values) {
+      final text = _clean(value);
+      if (text != null) {
+        return text;
+      }
+    }
+    return null;
+  }
+
+  static String? _clean(Object? value) {
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty || text == 'null') {
+      return null;
+    }
+    return text;
+  }
 }
 
 class WakareeruApp extends StatefulWidget {
@@ -270,18 +372,75 @@ class _WakareeruShellState extends State<WakareeruShell> {
   String? _errorMessage;
   GatewayInferenceResult? _result;
   bool _savedCurrent = false;
+  String _appVersion = fallbackAppVersion;
+  GatewayVersionInfo? _gatewayVersion;
+  Timer? _versionRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     _history.load();
+    _loadAppVersion();
+    _refreshGatewayVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) {
+        return;
+      }
+      setState(() => _appVersion = '${info.version} (${info.buildNumber})');
+    } catch (error) {
+      debugPrint('[wakareeru app] package info unavailable: $error');
+    }
   }
 
   @override
   void dispose() {
+    _versionRefreshTimer?.cancel();
     _apiBaseController.dispose();
     _history.dispose();
     super.dispose();
+  }
+
+  void _scheduleGatewayVersionRefresh() {
+    _versionRefreshTimer?.cancel();
+    _versionRefreshTimer = Timer(
+      const Duration(milliseconds: 450),
+      _refreshGatewayVersion,
+    );
+  }
+
+  Future<void> _refreshGatewayVersion() async {
+    final endpoint = resolveVersionEndpoint(_apiBaseController.text.trim());
+    if (endpoint == null) {
+      return;
+    }
+    try {
+      final response = await http
+          .get(endpoint)
+          .timeout(const Duration(seconds: 8));
+      final decoded = response.body.isEmpty ? null : jsonDecode(response.body);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        debugPrint(
+          '[wakareeru version] ${endpoint.toString()} -> '
+          '${response.statusCode}: ${_shortDebugText(response.body)}',
+        );
+        return;
+      }
+      final version = GatewayVersionInfo.fromJson(decoded);
+      if (!mounted || version == null) {
+        return;
+      }
+      setState(() => _gatewayVersion = version);
+      debugPrint(
+        '[wakareeru version] gateway=${version.gatewayDisplay} '
+        'api=${version.apiDisplay} model=${version.modelDisplay}',
+      );
+    } catch (error) {
+      debugPrint('[wakareeru version] fetch failed: $error');
+    }
   }
 
   /// 把识别结果的每个对象保存到本地记录。
@@ -677,14 +836,20 @@ class _WakareeruShellState extends State<WakareeruShell> {
         onStartRecognition: () => setState(() => _selectedIndex = 0),
       ),
       SettingsPage(
+        key: ValueKey('settings-${widget.locale?.languageCode ?? 'system'}'),
         apiBaseController: _apiBaseController,
+        appVersion: _appVersion,
+        gatewayVersion: _gatewayVersion,
         themeMode: widget.themeMode,
         locale: widget.locale,
         onThemeModeChanged: widget.onThemeModeChanged,
         onLocaleChanged: widget.onLocaleChanged,
         topK: _topK,
         onTopKChanged: (value) => setState(() => _topK = value),
-        onChanged: () => setState(() {}),
+        onChanged: () {
+          setState(() {});
+          _scheduleGatewayVersionRefresh();
+        },
       ),
     ];
 
@@ -1505,6 +1670,8 @@ class SettingsPage extends StatelessWidget {
   const SettingsPage({
     super.key,
     required this.apiBaseController,
+    required this.appVersion,
+    required this.gatewayVersion,
     required this.themeMode,
     required this.locale,
     required this.onThemeModeChanged,
@@ -1515,6 +1682,8 @@ class SettingsPage extends StatelessWidget {
   });
 
   final TextEditingController apiBaseController;
+  final String appVersion;
+  final GatewayVersionInfo? gatewayVersion;
   final ThemeMode themeMode;
   final Locale? locale;
   final ValueChanged<ThemeMode> onThemeModeChanged;
@@ -1538,14 +1707,17 @@ class SettingsPage extends StatelessWidget {
       'en' => 3,
       _ => 0,
     };
+    final apiVersion =
+        gatewayVersion?.apiDisplay ??
+        resolveApiVersion(apiBaseController.text.trim());
+    final gatewayVersionText = gatewayVersion?.gatewayDisplay ?? unknownVersion;
+    final modelVersion = gatewayVersion?.modelDisplay ?? unknownVersion;
     return AppBackdrop(
       child: ListView(
         padding: EdgeInsets.fromLTRB(18, topInset + 18, 18, 118),
         children: [
           PageTitle(title: strings.settingsTitle),
           const SizedBox(height: 18),
-          const AccountCard(),
-          const SizedBox(height: 14),
           GlassPanel(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1556,6 +1728,7 @@ class SettingsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 AdaptiveSegmentedControl(
+                  key: ValueKey('theme-${Localizations.localeOf(context)}'),
                   labels: [
                     strings.themeSystem,
                     strings.themeLight,
@@ -1577,6 +1750,7 @@ class SettingsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 AdaptiveSegmentedControl(
+                  key: ValueKey('language-${Localizations.localeOf(context)}'),
                   labels: [
                     strings.languageSystem,
                     strings.languageChinese,
@@ -1649,16 +1823,21 @@ class SettingsPage extends StatelessWidget {
                   text: strings.about,
                 ),
                 const SizedBox(height: 12),
-                InfoMetric(label: strings.appLabel, value: appDisplayName),
+                InfoMetric(label: strings.appVersion, value: appVersion),
+                const SizedBox(height: 8),
+                InfoMetric(label: strings.apiVersion, value: apiVersion),
                 const SizedBox(height: 8),
                 InfoMetric(
-                  label: strings.dataSource,
-                  value: 'Wikipedia · Commons',
+                  label: strings.gatewayVersion,
+                  value: gatewayVersionText,
                 ),
                 const SizedBox(height: 8),
-                const InfoMetric(
+                InfoMetric(label: strings.modelVersion, value: modelVersion),
+                const SizedBox(height: 8),
+                const InfoLinkMetric(
                   label: 'GitHub',
                   value: 'wakareeru-team/wakareeru',
+                  url: projectGitHubUrl,
                 ),
               ],
             ),
@@ -1930,18 +2109,13 @@ class AppWordmark extends StatelessWidget {
     return Row(
       children: [
         Container(
+          clipBehavior: Clip.antiAlias,
           width: 38,
           height: 38,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: const LinearGradient(
-              colors: [wakareeruBlue, wakareeruMint],
-            ),
-          ),
-          child: const Icon(
-            CupertinoIcons.tram_fill,
-            color: CupertinoColors.white,
-            size: 20,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
+          child: Image.asset(
+            'assets/icon/wakareeru_icon_1024.png',
+            fit: BoxFit.cover,
           ),
         ),
         const SizedBox(width: 11),
@@ -2434,7 +2608,7 @@ class ResultHeader extends StatelessWidget {
 }
 
 /// 识别中 / 空结果的占位卡片。
-class ResultPlaceholder extends StatelessWidget {
+class ResultPlaceholder extends StatefulWidget {
   const ResultPlaceholder({
     super.key,
     required this.message,
@@ -2443,6 +2617,42 @@ class ResultPlaceholder extends StatelessWidget {
 
   final String message;
   final bool isEmpty;
+
+  @override
+  State<ResultPlaceholder> createState() => _ResultPlaceholderState();
+}
+
+class _ResultPlaceholderState extends State<ResultPlaceholder>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+    if (!widget.isEmpty) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(ResultPlaceholder oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isEmpty) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2454,18 +2664,73 @@ class ResultPlaceholder extends StatelessWidget {
     return GlassPanel(
       child: Row(
         children: [
-          if (isEmpty)
+          if (widget.isEmpty)
             Icon(CupertinoIcons.search, size: 20, color: muted)
           else
-            const CupertinoActivityIndicator(radius: 10),
+            RecognitionWaitingMark(animation: _controller),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              message,
+              widget.message,
               style: TextStyle(fontSize: 14, color: muted, height: 1.3),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class RecognitionWaitingMark extends StatelessWidget {
+  const RecognitionWaitingMark({super.key, required this.animation});
+
+  final Animation<double> animation;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        return SizedBox(
+          width: 30,
+          height: 20,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (var index = 0; index < 3; index++)
+                ThinkingDot(progress: animation.value, index: index),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class ThinkingDot extends StatelessWidget {
+  const ThinkingDot({super.key, required this.progress, required this.index});
+
+  final double progress;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final phase = (progress + index * 0.18) % 1.0;
+    final wave = math.sin(phase * math.pi * 2);
+    final lift = math.max(0.0, wave) * 5;
+    final opacity = 0.42 + math.max(0.0, wave) * 0.58;
+    return Transform.translate(
+      offset: Offset(0, -lift),
+      child: Opacity(
+        opacity: opacity,
+        child: Container(
+          width: 7,
+          height: 7,
+          decoration: const BoxDecoration(
+            color: wakareeruBlue,
+            shape: BoxShape.circle,
+          ),
+        ),
       ),
     );
   }
@@ -2896,6 +3161,88 @@ class InfoMetric extends StatelessWidget {
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class InfoLinkMetric extends StatelessWidget {
+  const InfoLinkMetric({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.url,
+  });
+
+  final String label;
+  final String value;
+  final String url;
+
+  Future<void> _open() async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      return;
+    }
+    await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final labelColor = adaptiveColor(
+      context,
+      const Color(0x993C3C43),
+      const Color(0x99EBEBF5),
+    );
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      borderRadius: BorderRadius.circular(15),
+      onPressed: _open,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+        decoration: BoxDecoration(
+          color: adaptiveColor(
+            context,
+            CupertinoColors.white.withValues(alpha: 0.62),
+            const Color(0xFF1A2231).withValues(alpha: 0.92),
+          ),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  ImageIcon(
+                    const AssetImage('assets/icon/github_mark_48.png'),
+                    size: 16,
+                    color: labelColor,
+                  ),
+                  const SizedBox(width: 7),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: labelColor, fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: wakareeruBlue,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -3793,6 +4140,18 @@ class _CopyLinkButton extends StatefulWidget {
 class _CopyLinkButtonState extends State<_CopyLinkButton> {
   bool _copied = false;
 
+  Future<void> _open() async {
+    final uri = Uri.tryParse(widget.url);
+    if (uri == null) {
+      await _copy();
+      return;
+    }
+    final opened = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+    if (!opened) {
+      await _copy();
+    }
+  }
+
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: widget.url));
     await HapticFeedback.selectionClick();
@@ -3814,7 +4173,7 @@ class _CopyLinkButtonState extends State<_CopyLinkButton> {
         : CupertinoIcons.doc_on_clipboard;
     return CupertinoButton(
       padding: EdgeInsets.zero,
-      onPressed: _copy,
+      onPressed: widget.label == null ? _copy : _open,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
