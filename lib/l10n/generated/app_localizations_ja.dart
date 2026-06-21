@@ -30,7 +30,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get startRecognition => '認識を開始';
 
   @override
-  String get recognizing => '認識中…';
+  String get recognizing => 'Thinking…';
 
   @override
   String get selectImageFirst => '先に車両画像を選択してください。';
@@ -145,6 +145,18 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get appLabel => 'アプリ';
+
+  @override
+  String get appVersion => 'アプリバージョン';
+
+  @override
+  String get apiVersion => 'API バージョン';
+
+  @override
+  String get gatewayVersion => 'Gateway バージョン';
+
+  @override
+  String get modelVersion => 'モデルバージョン';
 
   @override
   String get dataSource => 'データソース';

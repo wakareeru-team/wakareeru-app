@@ -47,6 +47,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>选择一张铁路车辆图片用于识别。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>拍摄一张铁路车辆图片用于识别。</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

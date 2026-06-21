@@ -145,7 +145,7 @@ abstract class AppLocalizations {
   /// No description provided for @recognizing.
   ///
   /// In zh, this message translates to:
-  /// **'识别中…'**
+  /// **'Thinking…'**
   String get recognizing;
 
   /// No description provided for @selectImageFirst.
@@ -369,6 +369,30 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'应用'**
   String get appLabel;
+
+  /// No description provided for @appVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'应用版本'**
+  String get appVersion;
+
+  /// No description provided for @apiVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'API 版本'**
+  String get apiVersion;
+
+  /// No description provided for @gatewayVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'Gateway 版本'**
+  String get gatewayVersion;
+
+  /// No description provided for @modelVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型版本'**
+  String get modelVersion;
 
   /// No description provided for @dataSource.
   ///
