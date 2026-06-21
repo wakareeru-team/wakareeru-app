@@ -90,14 +90,9 @@ List<(String, String)> predictionMetadataRows(
 }) {
   final strings = l10n(context);
   final rows = <(String, String)>[];
-  if (entry.operator != null) {
-    rows.add((strings.collectionOperator, entry.operator!));
-  }
-  if (detailed && entry.operatorJp != null) {
-    rows.add(('operator_jp', entry.operatorJp!));
-  }
-  if (detailed && entry.operatorEn != null) {
-    rows.add(('operator_en', entry.operatorEn!));
+  final operator = entry.operatorFor(currentLanguageCode(context));
+  if (operator != null) {
+    rows.add((strings.collectionOperator, operator));
   }
   if (entry.stockType != null) {
     rows.add((detailed ? 'type' : strings.vehicleType, entry.stockType!));
@@ -137,6 +132,9 @@ bool isAppDark(BuildContext context) {
 }
 
 AppLocalizations l10n(BuildContext context) => AppLocalizations.of(context);
+
+String currentLanguageCode(BuildContext context) =>
+    Localizations.localeOf(context).languageCode;
 
 Color adaptiveColor(BuildContext context, Color light, Color dark) {
   return isAppDark(context) ? dark : light;
@@ -480,6 +478,8 @@ class _WakareeruShellState extends State<WakareeruShell> {
           submodel: best.submodel,
           specialFormation: best.specialFormation,
           specialLivery: best.specialLivery,
+          localizedLabels: best.localizedNames,
+          localizedOperators: best.localizedOperators,
           thumbnailPath: thumbnailPath,
         ),
       );
@@ -1260,14 +1260,16 @@ class HistoryCard extends StatelessWidget {
         label: record.label,
       ),
     );
-    final parts = parseSeries(record.label);
+    final languageCode = currentLanguageCode(context);
+    final displayOperator = record.operatorFor(languageCode);
+    final parts = parseSeries(record.labelFor(languageCode));
     final muted = adaptiveColor(
       context,
       const Color(0x993C3C43),
       const Color(0x99EBEBF5),
     );
     final time = record.time;
-    final subtitle = '${record.operator ?? category.jp} · ${category.jp}';
+    final subtitle = '${displayOperator ?? category.jp} · ${category.jp}';
     final timeText = _formatRecordTime(context, time);
     final fill = adaptiveColor(
       context,
@@ -1495,7 +1497,9 @@ class HistoryRecordSheet extends StatelessWidget {
         label: record.label,
       ),
     );
-    final parts = parseSeries(record.label);
+    final languageCode = currentLanguageCode(context);
+    final displayOperator = record.operatorFor(languageCode);
+    final parts = parseSeries(record.labelFor(languageCode));
     final muted = adaptiveColor(
       context,
       const Color(0x993C3C43),
@@ -1506,8 +1510,8 @@ class HistoryRecordSheet extends StatelessWidget {
     final dateText = _formatRecordTime(context, time);
 
     final metaRows = <(String, String)>[
-      if (record.operator != null)
-        (l10n(context).collectionOperator, record.operator!),
+      if (displayOperator != null)
+        (l10n(context).collectionOperator, displayOperator),
       (l10n(context).vehicleType, record.stockType ?? category.jp),
       (l10n(context).powerType, record.powerTypeEffective ?? category.jp),
       (
@@ -2422,7 +2426,9 @@ class SubjectBoxOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = subjectStockColor(subject);
     final confidence = subject.confidence;
-    final base = parseSeries(subject.displayTitle).base;
+    final base = parseSeries(
+      subject.displayTitleFor(currentLanguageCode(context)),
+    ).base;
     final label = confidence != null && confidence > 0
         ? '$base  ${(confidence * 100).toStringAsFixed(0)}%'
         : base;
@@ -2754,7 +2760,8 @@ class VehicleCard extends StatelessWidget {
         label: subject.displayTitle,
       ),
     );
-    final parts = parseSeries(subject.displayTitle);
+    final languageCode = currentLanguageCode(context);
+    final parts = parseSeries(subject.displayTitleFor(languageCode));
     final confidence = (subject.confidence ?? 0).clamp(0, 1).toDouble();
     final strings = l10n(context);
     final statusLabel = subjectStatusLabel(context, subject);
@@ -2763,7 +2770,7 @@ class VehicleCard extends StatelessWidget {
       const Color(0x993C3C43),
       const Color(0x99EBEBF5),
     );
-    final operator = subject.operator;
+    final operator = subject.operatorFor(languageCode);
     final best = subject.best;
     final wikiUrl = subject.best?.wikiUrl;
 
@@ -2996,7 +3003,7 @@ class _CandidateRow extends StatelessWidget {
           SizedBox(
             width: 96,
             child: Text(
-              entry.label,
+              entry.labelFor(currentLanguageCode(context)),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -3345,6 +3352,9 @@ class DetectedSubject {
 
   String get displayTitle => best?.label ?? detectionLabel ?? 'Unknown';
 
+  String displayTitleFor(String languageCode) =>
+      best?.labelFor(languageCode) ?? detectionLabel ?? 'Unknown';
+
   double? get confidence => best?.score;
 
   /// 列表副标题：有元数据描述时显示（网关补充 description 后自动出现）。
@@ -3352,6 +3362,7 @@ class DetectedSubject {
 
   // 最佳候选的细粒度元数据，便于卡片直接读取。
   String? get operator => best?.operator;
+  String? operatorFor(String languageCode) => best?.operatorFor(languageCode);
   String? get operatorJp => best?.operatorJp;
   String? get operatorEn => best?.operatorEn;
   String? get powerType => best?.powerType;
@@ -3544,6 +3555,7 @@ class PredictionEntry {
     String? wikiUrlRaw,
     this.description,
     this.localizedNames = const {},
+    this.localizedOperators = const {},
   }) : _series = series,
        _submodel = submodel,
        _bandai = bandai,
@@ -3572,6 +3584,7 @@ class PredictionEntry {
   final String? _wikiUrlRaw;
   final String? description;
   final Map<String, String> localizedNames;
+  final Map<String, List<String>> localizedOperators;
 
   /// 打包标签表里的元数据（按 label 查），用于网关字段缺失时补全。
   StockMeta? get _meta => catalogLookup(label);
@@ -3590,10 +3603,18 @@ class PredictionEntry {
   String? get powerType => _powerType ?? _meta?.power;
   String? get stockType => _meta?.type; // 车种（含新幹線），仅标签表有
   String? get fullName => _meta?.fullName;
-  String? get wikiTitle => _wikiTitle ?? _meta?.wiki;
+  String? get wikiTitle => _wikiTitle;
 
-  /// 维基链接：优先后端给的完整 URL，否则由 wiki_title 拼日文维基。
+  /// 维基链接只使用后端数据；wiki_title_ja 仍对应日文维基。
   String? get wikiUrl => _wikiUrlRaw ?? wikipediaUrl(wikiTitle);
+
+  String labelFor(String languageCode) =>
+      localizedNames[languageCode] ?? localizedNames['ja'] ?? label;
+
+  String? operatorFor(String languageCode) {
+    final values = localizedOperators[languageCode] ?? localizedOperators['ja'];
+    return values != null && values.isNotEmpty ? values.join(' / ') : operator;
+  }
 
   String? get subtitle {
     if (description != null && description!.isNotEmpty) {
@@ -3612,7 +3633,12 @@ class PredictionEntry {
           map['fine_grained_series'] ??
           map['series'] ??
           map['top_label'];
-      final label = labelValue?.toString();
+      final localizedLabels = _parseLocalized(labelValue);
+      final label =
+          localizedLabels['ja'] ??
+          (localizedLabels.isNotEmpty
+              ? localizedLabels.values.first
+              : labelValue?.toString());
       if (label == null || label.isEmpty) {
         return null;
       }
@@ -3631,21 +3657,30 @@ class PredictionEntry {
         submodel: _firstString(map, const ['submodel', 'sub_model']),
         bandai: _firstString(map, const ['bandai', '番台']),
         operatorJp: _operatorString(
-          map['operator_jp'] ?? map['operator_jp_json'] ?? map['operators_jp'],
+          _languageValue(map['operator'], 'ja') ??
+              map['operator_jp'] ??
+              map['operator_jp_json'] ??
+              map['operators_jp'],
         ),
         operatorEn: _operatorString(
-          map['operator_en'] ??
+          _languageValue(map['operator'], 'en') ??
+              map['operator_en'] ??
               map['operator_en_json'] ??
               map['operator'] ??
               map['operators'],
         ),
+        localizedOperators: _parseLocalizedLists(map['operator']),
         powerType: _firstString(map, const ['power_type', 'powerType']),
         specialFormation: _firstString(map, const [
           'special_formation',
           'formation',
         ]),
         specialLivery: _firstString(map, const ['special_livery', 'livery']),
-        wikiTitle: _firstString(map, const ['wiki_title', 'wikiTitle']),
+        wikiTitle: _firstString(map, const [
+          'wiki_title_ja',
+          'wiki_title',
+          'wikiTitle',
+        ]),
         wikiUrlRaw: _firstString(map, const [
           'wiki_url',
           'wikipedia',
@@ -3657,9 +3692,14 @@ class PredictionEntry {
           'desc',
           'summary',
         ]),
-        localizedNames: _parseLocalized(
-          map['names'] ?? map['i18n'] ?? map['localized'] ?? map['labels'],
-        ),
+        localizedNames: localizedLabels.isNotEmpty
+            ? localizedLabels
+            : _parseLocalized(
+                map['names'] ??
+                    map['i18n'] ??
+                    map['localized'] ??
+                    map['labels'],
+              ),
       );
     }
     if (json is List && json.length >= 2) {
@@ -3709,6 +3749,9 @@ class PredictionEntry {
     return null;
   }
 
+  static dynamic _languageValue(dynamic value, String languageCode) =>
+      value is Map ? value[languageCode] : null;
+
   /// 运营公司可能是字符串、JSON 数组字符串，或已解析的数组；统一取第一个非空值。
   static String? _operatorString(dynamic value) {
     if (value == null) {
@@ -3754,6 +3797,20 @@ class PredictionEntry {
       return result;
     }
     return const {};
+  }
+
+  static Map<String, List<String>> _parseLocalizedLists(dynamic value) {
+    if (value is! Map) return const {};
+    final result = <String, List<String>>{};
+    value.forEach((key, dynamic raw) {
+      final values = raw is List ? raw : [raw];
+      final items = values
+          .where((item) => item != null && item.toString().isNotEmpty)
+          .map((item) => item.toString())
+          .toList();
+      if (items.isNotEmpty) result[key.toString()] = items;
+    });
+    return result;
   }
 }
 
@@ -3820,7 +3877,9 @@ class SubjectDetailSheet extends StatelessWidget {
                           children: [
                             Flexible(
                               child: Text(
-                                subject.displayTitle,
+                                subject.displayTitleFor(
+                                  currentLanguageCode(context),
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -4003,7 +4062,7 @@ class _PredictionBar extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  entry.label,
+                  entry.labelFor(currentLanguageCode(context)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -4087,17 +4146,12 @@ class _MetadataView extends StatelessWidget {
     final entry = this.entry;
     final description = entry?.description;
     final wikiUrl = entry?.wikiUrl;
-    final localized = entry?.localizedNames ?? const <String, String>{};
 
     final rows = entry == null
         ? <(String, String)>[]
         : predictionMetadataRows(context, entry, detailed: true);
 
-    final hasMeta =
-        rows.isNotEmpty ||
-        description != null ||
-        wikiUrl != null ||
-        localized.isNotEmpty;
+    final hasMeta = rows.isNotEmpty || description != null || wikiUrl != null;
 
     if (!hasMeta) {
       return Text(
@@ -4114,8 +4168,6 @@ class _MetadataView extends StatelessWidget {
           const SizedBox(height: 10),
         ],
         for (final row in rows) _DetailMetric(label: row.$1, value: row.$2),
-        for (final name in localized.entries)
-          _DetailMetric(label: name.key, value: name.value),
         if (wikiUrl != null) ...[
           const SizedBox(height: 6),
           _CopyLinkButton(url: wikiUrl, label: l10n(context).openWikipedia),

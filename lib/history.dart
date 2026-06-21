@@ -21,6 +21,8 @@ class HistoryRecord {
     this.submodel,
     this.specialFormation,
     this.specialLivery,
+    this.localizedLabels = const {},
+    this.localizedOperators = const {},
     this.thumbnailPath,
   });
 
@@ -36,6 +38,8 @@ class HistoryRecord {
   final String? submodel;
   final String? specialFormation;
   final String? specialLivery;
+  final Map<String, String> localizedLabels;
+  final Map<String, List<String>> localizedOperators;
   final String? thumbnailPath;
 
   StockMeta? get _meta => catalogLookup(label);
@@ -45,7 +49,15 @@ class HistoryRecord {
   String? get operator => operatorJpEffective ?? operatorEnEffective;
   String? get powerTypeEffective => powerType ?? _meta?.power;
   String? get stockType => _meta?.type;
-  String? get wikiTitleEffective => wikiTitle ?? _meta?.wiki;
+  String? get wikiTitleEffective => wikiTitle;
+
+  String labelFor(String languageCode) =>
+      localizedLabels[languageCode] ?? localizedLabels['ja'] ?? label;
+
+  String? operatorFor(String languageCode) {
+    final values = localizedOperators[languageCode] ?? localizedOperators['ja'];
+    return values != null && values.isNotEmpty ? values.join(' / ') : operator;
+  }
 
   DateTime get time => DateTime.fromMicrosecondsSinceEpoch(id);
 
@@ -61,6 +73,8 @@ class HistoryRecord {
     if (submodel != null) 'submodel': submodel,
     if (specialFormation != null) 'special_formation': specialFormation,
     if (specialLivery != null) 'special_livery': specialLivery,
+    if (localizedLabels.isNotEmpty) 'labels': localizedLabels,
+    if (localizedOperators.isNotEmpty) 'operators': localizedOperators,
     if (thumbnailPath != null) 'thumbnail_path': thumbnailPath,
   };
 
@@ -85,8 +99,33 @@ class HistoryRecord {
       submodel: json['submodel']?.toString(),
       specialFormation: json['special_formation']?.toString(),
       specialLivery: json['special_livery']?.toString(),
+      localizedLabels: _stringMap(json['labels']),
+      localizedOperators: _stringListMap(json['operators']),
       thumbnailPath: json['thumbnail_path']?.toString(),
     );
+  }
+
+  static Map<String, String> _stringMap(dynamic value) {
+    if (value is! Map) return const {};
+    return {
+      for (final entry in value.entries)
+        if (entry.value != null && entry.value.toString().isNotEmpty)
+          entry.key.toString(): entry.value.toString(),
+    };
+  }
+
+  static Map<String, List<String>> _stringListMap(dynamic value) {
+    if (value is! Map) return const {};
+    final result = <String, List<String>>{};
+    for (final entry in value.entries) {
+      if (entry.value is! List) continue;
+      final items = (entry.value as List)
+          .where((item) => item != null && item.toString().isNotEmpty)
+          .map((item) => item.toString())
+          .toList();
+      if (items.isNotEmpty) result[entry.key.toString()] = items;
+    }
+    return result;
   }
 }
 
