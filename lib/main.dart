@@ -2426,7 +2426,9 @@ class SubjectBoxOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = subjectStockColor(subject);
     final confidence = subject.confidence;
-    final base = parseSeries(subject.displayTitle).base;
+    final base = parseSeries(
+      subject.displayTitleFor(currentLanguageCode(context)),
+    ).base;
     final label = confidence != null && confidence > 0
         ? '$base  ${(confidence * 100).toStringAsFixed(0)}%'
         : base;
