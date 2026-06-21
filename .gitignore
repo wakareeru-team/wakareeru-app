@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local release signing material
+/android/key.properties
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+/ios/ExportOptions.plist
