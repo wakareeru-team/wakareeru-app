@@ -17,6 +17,34 @@ env:
   FLUTTER_VERSION: "3.44.2"
 
 jobs:
+  signing-check:
+    name: Check optional signing configuration
+    runs-on: ubuntu-latest
+    outputs:
+      ios: ${{ steps.check.outputs.ios }}
+    steps:
+      - name: Check Apple signing secrets
+        id: check
+        shell: bash
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          IOS_EXPORT_OPTIONS_PLIST_BASE64: ${{ secrets.IOS_EXPORT_OPTIONS_PLIST_BASE64 }}
+          IOS_KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+        run: |
+          if [[ -n "$IOS_CERTIFICATE_BASE64" \
+            && -n "$IOS_CERTIFICATE_PASSWORD" \
+            && -n "$IOS_PROVISION_PROFILE_BASE64" \
+            && -n "$IOS_EXPORT_OPTIONS_PLIST_BASE64" \
+            && -n "$IOS_KEYCHAIN_PASSWORD" ]]; then
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+            echo "Apple signing is configured; the iOS IPA will be built."
+          else
+            echo "ios=false" >> "$GITHUB_OUTPUT"
+            echo "Apple signing is incomplete; skipping the iOS IPA build."
+          fi
+
   android:
     name: Build Android APK
     runs-on: ubuntu-latest
@@ -92,6 +120,8 @@ jobs:
 
   ios:
     name: Build iOS IPA
+    needs: signing-check
+    if: needs.signing-check.outputs.ios == 'true'
     runs-on: macos-latest
     env:
       IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
@@ -194,6 +224,10 @@ jobs:
     needs:
       - android
       - ios
+    if: >-
+      ${{ always()
+        && needs.android.result == 'success'
+        && (needs.ios.result == 'success' || needs.ios.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - name: Download build artifacts
