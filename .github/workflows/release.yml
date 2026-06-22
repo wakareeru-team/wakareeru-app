@@ -162,6 +162,15 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Patch iOS SDK compatibility
+        shell: bash
+        run: |
+          find "$PUB_CACHE/hosted" -path '*/adaptive_platform_ui-*/ios/Classes/*.swift' -type f -print0 \
+            | while IFS= read -r -d '' swift_file; do
+              perl -0pi -e 's/\.prominentGlass\(\)/.tinted()/g; s/\.glass\(\)/.tinted()/g' \
+                "$swift_file"
+            done
+
       - name: Install Apple signing material
         shell: bash
         run: |
