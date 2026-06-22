@@ -200,39 +200,59 @@ jobs:
           cp "$PROFILE_PATH" \
             "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
 
-          PBXPROJ="ios/Runner.xcodeproj/project.pbxproj"
-          set_build_setting() {
-            local config_id="$1"
-            local key="$2"
-            local value="$3"
-            /usr/libexec/PlistBuddy \
-              -c "Set :objects:$config_id:buildSettings:$key $value" \
-              "$PBXPROJ" 2>/dev/null \
-              || /usr/libexec/PlistBuddy \
-                -c "Add :objects:$config_id:buildSettings:$key string $value" \
-                "$PBXPROJ"
-          }
-
-          for CONFIG_ID in 97C147071CF9000F007C117D 249021D4217E4FDB00AE95B9; do
-            set_build_setting "$CONFIG_ID" CODE_SIGN_STYLE Automatic
-            set_build_setting "$CONFIG_ID" CODE_SIGN_IDENTITY "Apple Distribution"
-            set_build_setting "$CONFIG_ID" 'CODE_SIGN_IDENTITY[sdk=iphoneos*]' \
-              "Apple Distribution"
-            /usr/libexec/PlistBuddy \
-              -c "Delete :objects:$CONFIG_ID:buildSettings:PROVISIONING_PROFILE_SPECIFIER" \
-              "$PBXPROJ" 2>/dev/null \
-              || true
-          done
-
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "PROFILE_PATH=$PROFILE_PATH" >> "$GITHUB_ENV"
           echo "EXPORT_OPTIONS_PATH=$EXPORT_OPTIONS_PATH" >> "$GITHUB_ENV"
+          echo "PROFILE_PLIST=$PROFILE_PLIST" >> "$GITHUB_ENV"
 
-      - name: Build signed IPA
+      - name: Build unsigned iOS app
         run: >-
-          flutter build ipa --release
+          flutter build ios --release --no-codesign
           --build-name="$VERSION"
           --build-number="$GITHUB_RUN_NUMBER"
-          --export-options-plist="$EXPORT_OPTIONS_PATH"
+
+      - name: Sign and package IPA
+        shell: bash
+        run: |
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          SIGNING_IDENTITY="Apple Distribution: RONGGUANG LIANG (H6Y9B5HQ74)"
+          ENTITLEMENTS_PATH="$RUNNER_TEMP/Runner.entitlements"
+
+          test -d "$APP_PATH"
+          cp "$PROFILE_PATH" "$APP_PATH/embedded.mobileprovision"
+          /usr/libexec/PlistBuddy \
+            -x -c "Print Entitlements" "$PROFILE_PLIST" > "$ENTITLEMENTS_PATH"
+
+          if [[ -d "$APP_PATH/Frameworks" ]]; then
+            find "$APP_PATH/Frameworks" -maxdepth 1 \
+              \( -name '*.framework' -o -name '*.dylib' \) -print0 \
+              | while IFS= read -r -d '' item; do
+                codesign --force --sign "$SIGNING_IDENTITY" \
+                  --keychain "$KEYCHAIN_PATH" \
+                  --timestamp=none "$item"
+              done
+          fi
+
+          if [[ -d "$APP_PATH/PlugIns" ]]; then
+            find "$APP_PATH/PlugIns" -maxdepth 1 -name '*.appex' -print0 \
+              | while IFS= read -r -d '' item; do
+                codesign --force --sign "$SIGNING_IDENTITY" \
+                  --keychain "$KEYCHAIN_PATH" \
+                  --entitlements "$ENTITLEMENTS_PATH" \
+                  --timestamp=none "$item"
+              done
+          fi
+
+          codesign --force --sign "$SIGNING_IDENTITY" \
+            --keychain "$KEYCHAIN_PATH" \
+            --entitlements "$ENTITLEMENTS_PATH" \
+            --timestamp=none "$APP_PATH"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+          mkdir -p build/ios/ipa/Payload
+          rm -rf build/ios/ipa/Payload/Runner.app
+          cp -R "$APP_PATH" build/ios/ipa/Payload/Runner.app
+          (cd build/ios/ipa && zip -qry Runner.ipa Payload)
 
       - name: Prepare IPA artifact
         shell: bash
