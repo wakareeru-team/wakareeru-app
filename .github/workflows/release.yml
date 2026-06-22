@@ -196,55 +196,33 @@ jobs:
           PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
           security cms -D -i "$PROFILE_PATH" > "$PROFILE_PLIST"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" "$PROFILE_PLIST")
-          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print Name" "$PROFILE_PLIST")
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp "$PROFILE_PATH" \
             "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
 
           PBXPROJ="ios/Runner.xcodeproj/project.pbxproj"
-          for CONFIG_ID in 97C147071CF9000F007C117D 249021D4217E4FDB00AE95B9; do
+          set_build_setting() {
+            local config_id="$1"
+            local key="$2"
+            local value="$3"
             /usr/libexec/PlistBuddy \
-              -c "Set :objects:$CONFIG_ID:buildSettings:CODE_SIGN_STYLE Manual" \
-              "$PBXPROJ" \
+              -c "Set :objects:$config_id:buildSettings:$key $value" \
+              "$PBXPROJ" 2>/dev/null \
               || /usr/libexec/PlistBuddy \
-                -c "Add :objects:$CONFIG_ID:buildSettings:CODE_SIGN_STYLE string Manual" \
+                -c "Add :objects:$config_id:buildSettings:$key string $value" \
                 "$PBXPROJ"
-            /usr/libexec/PlistBuddy \
-              -c "Set :objects:$CONFIG_ID:buildSettings:CODE_SIGN_IDENTITY Apple Distribution" \
-              "$PBXPROJ" \
-              || /usr/libexec/PlistBuddy \
-                -c "Add :objects:$CONFIG_ID:buildSettings:CODE_SIGN_IDENTITY string Apple Distribution" \
-                "$PBXPROJ"
-            /usr/libexec/PlistBuddy \
-              -c "Set :objects:$CONFIG_ID:buildSettings:CODE_SIGN_IDENTITY[sdk=iphoneos*] Apple Distribution" \
-              "$PBXPROJ" \
-              || /usr/libexec/PlistBuddy \
-                -c "Add :objects:$CONFIG_ID:buildSettings:CODE_SIGN_IDENTITY[sdk=iphoneos*] string Apple Distribution" \
-                "$PBXPROJ"
-            /usr/libexec/PlistBuddy \
-              -c "Set :objects:$CONFIG_ID:buildSettings:PROVISIONING_PROFILE_SPECIFIER $PROFILE_NAME" \
-              "$PBXPROJ" \
-              || /usr/libexec/PlistBuddy \
-                -c "Add :objects:$CONFIG_ID:buildSettings:PROVISIONING_PROFILE_SPECIFIER string $PROFILE_NAME" \
-                "$PBXPROJ"
-          done
+          }
 
-          /usr/libexec/PlistBuddy \
-            -c "Set :signingStyle manual" "$EXPORT_OPTIONS_PATH" \
-            || /usr/libexec/PlistBuddy \
-              -c "Add :signingStyle string manual" "$EXPORT_OPTIONS_PATH"
-          /usr/libexec/PlistBuddy \
-            -c "Set :signingCertificate Apple Distribution" "$EXPORT_OPTIONS_PATH" \
-            || /usr/libexec/PlistBuddy \
-              -c "Add :signingCertificate string Apple Distribution" "$EXPORT_OPTIONS_PATH"
-          /usr/libexec/PlistBuddy \
-            -c "Delete :provisioningProfiles" "$EXPORT_OPTIONS_PATH" \
-            || true
-          /usr/libexec/PlistBuddy \
-            -c "Add :provisioningProfiles dict" "$EXPORT_OPTIONS_PATH"
-          /usr/libexec/PlistBuddy \
-            -c "Add :provisioningProfiles:com.wakareeru.app string $PROFILE_NAME" \
-            "$EXPORT_OPTIONS_PATH"
+          for CONFIG_ID in 97C147071CF9000F007C117D 249021D4217E4FDB00AE95B9; do
+            set_build_setting "$CONFIG_ID" CODE_SIGN_STYLE Automatic
+            set_build_setting "$CONFIG_ID" CODE_SIGN_IDENTITY "Apple Distribution"
+            set_build_setting "$CONFIG_ID" 'CODE_SIGN_IDENTITY[sdk=iphoneos*]' \
+              "Apple Distribution"
+            /usr/libexec/PlistBuddy \
+              -c "Delete :objects:$CONFIG_ID:buildSettings:PROVISIONING_PROFILE_SPECIFIER" \
+              "$PBXPROJ" 2>/dev/null \
+              || true
+          done
 
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
           echo "EXPORT_OPTIONS_PATH=$EXPORT_OPTIONS_PATH" >> "$GITHUB_ENV"
